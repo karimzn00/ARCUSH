@@ -17,9 +17,6 @@ class Segment:
 
 
 def parse_schedule_spec(spec: str, mode: str) -> List[Segment]:
-    """
-    Example: "none:20,{mode}:40,none:60" with mode="invert"
-    """
     spec = spec.replace("{mode}", mode).strip()
     if not spec:
         return [Segment("none", 0)]
@@ -36,9 +33,6 @@ def parse_schedule_spec(spec: str, mode: str) -> List[Segment]:
 
 
 class ShockScheduler:
-    """
-    Drives 'in_shock' based on episode step index.
-    """
     def __init__(self, schedule: List[Segment]):
         self.schedule = schedule
         self.total = sum(s.length for s in schedule)
@@ -59,10 +53,6 @@ class ShockScheduler:
 
 
 class ShockWrapper(gym.Wrapper):
-    """
-    Applies shocks to observations and/or dynamics.
-    Reward shock is optional but not the only effect.
-    """
 
     def __init__(
         self,
