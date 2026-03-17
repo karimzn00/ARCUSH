@@ -75,7 +75,6 @@ def _short_env(e: str) -> str:
              .replace("-v1", "").replace("-v0", "")
              .replace("-v4", "").replace("-v5", ""))
 
-
 def _load_eval_csv(run_root: Path) -> pd.DataFrame:
     p = run_root / "eval" / "eval_results.csv"
     if not p.exists():
@@ -305,6 +304,7 @@ def _print_tables(ev: pd.DataFrame, agg: pd.DataFrame):
         print(shown.to_string(index=False))
 
 
+
 def _write_latex_tables(ev: pd.DataFrame, plots_dir: Path):
     """
     Write publication-ready LaTeX tables to plots_dir/tables/.
@@ -321,6 +321,7 @@ def _write_latex_tables(ev: pd.DataFrame, plots_dir: Path):
     envs   = sorted(ev["env"].unique())
     S      = SCHEDULE_SHORT
 
+    # ── Table 1: Main collapse rate ───────────────────────────────────────
     data = (ev.groupby(["env", "schedule"])["collapse_rate_shock"]
               .mean().unstack("schedule")
               .reindex(index=envs, columns=scheds).fillna(0))
@@ -359,6 +360,7 @@ def _write_latex_tables(ev: pd.DataFrame, plots_dir: Path):
     out1.write_text("\n".join(lines), encoding="utf-8")
     print(f"[table] {out1}")
 
+    # ── Table 2: Algo vulnerability ────────────────────────────────────────
     mid   = ev[ev["schedule"].isin(["concept_drift", "resource_constraint",
                                      "trust_violation"])]
     worst = (mid.groupby(["env", "algo", "schedule"])["collapse_score_shock_mean"]
@@ -399,6 +401,7 @@ def _write_latex_tables(ev: pd.DataFrame, plots_dir: Path):
     out2.write_text("\n".join(lines2), encoding="utf-8")
     print(f"[table] {out2}")
 
+    # ── Table 3: Baseline FPR ─────────────────────────────────────────────
     bl  = ev[ev["schedule"] == "baseline"]
     fpr = (bl.groupby("env")["collapse_rate_pre"]
              .agg(["mean", "std"])
@@ -658,8 +661,11 @@ def _plot_reward_vs_collapse(ev: pd.DataFrame, plots_dir: Path):
         lambda x: (x - x.min()) / (x.max() - x.min() + 1e-12)
     )
 
-    fig, axes = plt.subplots(1, 2, figsize=(13, 5.5),
-                              gridspec_kw={"wspace": 0.38})
+    # Extra vertical space at bottom for the legend
+    fig, axes = plt.subplots(1, 2, figsize=(14, 6.5),
+                              gridspec_kw={"wspace": 0.32})
+
+    legend_handles = []   # collected once for shared bottom legend
 
     for ax, xcol, xlabel, title_suffix in [
         (axes[0], "reward",      "Mean Reward (baseline, raw)",
@@ -685,58 +691,77 @@ def _plot_reward_vs_collapse(ev: pd.DataFrame, plots_dir: Path):
                         np.percentile(y_boots, 2.5,  axis=0),
                         np.percentile(y_boots, 97.5, axis=0),
                         alpha=0.15, color="#666")
-        ax.plot(x_line, y_line, color="#444", linewidth=1.2,
-                linestyle="--",
-                label=f"fit  (r={r:+.2f}, p={p:.3f})")
+        ax.plot(x_line, y_line, color="#444", linewidth=1.2, linestyle="--")
 
         for algo in sorted(df["algo"].unique()):
             sub = df[df["algo"] == algo]
             disc_mask = sub["env"].isin(DISCRETE)
-            for mask, marker, ms in [
-                (disc_mask,  "D", 52),
-                (~disc_mask, "o", 60),
+            for mask, marker, ms, shape_label in [
+                (disc_mask,  "^", 55, "discrete"),
+                (~disc_mask, "o", 62, "continuous"),
             ]:
                 s = sub[mask]
                 if len(s) == 0:
                     continue
-                ax.scatter(s[xcol], s["vi_rate"],
-                           color=ALGO_COLORS.get(algo, "#555"),
-                           marker=marker, s=ms, zorder=3, alpha=0.88,
-                           label=(f"{algo} ({'discrete' if marker=='D' else 'continuous'})"
-                                  if xcol == "reward_norm" else "_nolegend_"))
+                sc = ax.scatter(s[xcol], s["vi_rate"],
+                                color=ALGO_COLORS.get(algo, "#555"),
+                                marker=marker, s=ms, zorder=3, alpha=0.88)
+                # Collect handle only once (from first axis)
+                if ax is axes[0]:
+                    legend_handles.append(
+                        plt.Line2D([0], [0],
+                                   marker=marker,
+                                   color=ALGO_COLORS.get(algo, "#555"),
+                                   linestyle="none", markersize=7,
+                                   label=f"{algo} ({shape_label})")
+                    )
 
-        for _, row in df.iterrows():
-            ax.annotate(_short_env(row["env"]),
-                        (row[xcol], row["vi_rate"]),
-                        fontsize=5.5, alpha=0.60,
-                        xytext=(3, 3), textcoords="offset points")
+        # Label only one point per env (the median vi_rate one) to avoid overlap
+        for env, grp in df.groupby("env"):
+            median_idx = (grp["vi_rate"] - grp["vi_rate"].median()).abs().idxmin()
+            row = grp.loc[median_idx]
+            ax.annotate(
+                _short_env(env),
+                (row[xcol], row["vi_rate"]),
+                fontsize=6.5, alpha=0.75, color="#333",
+                xytext=(5, 4), textcoords="offset points",
+            )
 
         ax.set_xlabel(xlabel)
         ax.set_ylabel("Collapse Rate — valence inversion")
-        ax.set_ylim(-0.05, 1.12)
+        ax.set_ylim(-0.08, 1.15)
         ax.set_title(
-            f"Reward vs Identity Robustness  ({title_suffix})\n"
-            f"r = {r:+.3f}  p = {p:.3f}  "
+            f"Reward vs Stability  ({title_suffix})\n"
+            f"r = {r:+.3f}   p = {p:.3f}   "
             f"{'(no significant correlation)' if p > 0.05 else '(significant)'}",
         )
         p_col = "#C62828" if p <= 0.05 else "#2E7D32"
         ax.annotate(
             f"Pearson r = {r:+.3f}\np = {p:.3f}",
-            xy=(0.97, 0.05), xycoords="axes fraction",
-            ha="right", va="bottom",
-            bbox=dict(boxstyle="round,pad=0.3", facecolor="white",
-                      edgecolor=p_col, alpha=0.85),
+            xy=(0.03, 0.97), xycoords="axes fraction",
+            ha="left", va="top",
+            fontsize=9,
+            bbox=dict(boxstyle="round,pad=0.35", facecolor="white",
+                      edgecolor=p_col, alpha=0.90),
         )
 
-    axes[1].legend(ncol=2, loc="upper left", framealpha=0.85,
-                   title="algo  (▲=discrete  ●=continuous)",
-                   title_fontsize=8)
+    fig.legend(
+        handles=legend_handles,
+        loc="lower center",
+        ncol=4,
+        fontsize=8.5,
+        framealpha=0.95,
+        title="Algorithm   (▲ = discrete action space   ● = continuous)",
+        title_fontsize=8,
+        bbox_to_anchor=(0.5, -0.07),
+    )
     fig.suptitle(
-        "Does reward predict identity robustness under valence inversion?\n"
-        "Each point = one (env, algo) pair averaged over 10 seeds × 2 eval modes",
+        "Does reward predict behavioral stability under valence inversion?\n"
+        "Each point = one (env, algo) pair — mean over 10 seeds × 2 eval modes",
         fontsize=11, y=1.02,
     )
     plt.tight_layout()
+    plt.subplots_adjust(bottom=0.18)   # make room for legend below
     _savefig(fig, plots_dir / "reward_vs_collapse_scatter.png")
 
 
@@ -1254,11 +1279,6 @@ def _make_all_plots(ev: pd.DataFrame, agg: pd.DataFrame,
     _plot_mujoco_vs_classic(ev, plots_dir)
     _write_latex_tables(ev, plots_dir)
 
-
-# ──────────────────────────────────────────────────────────────────────────────
-# Main
-# ──────────────────────────────────────────────────────────────────────────────
-
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--root",       required=True)
@@ -1317,7 +1337,6 @@ def main():
             _write_latex_tables(ev, plots_dir)
         return
 
-    # ── multi-run (leaderboard) mode ──────────────────────────────────────
     runs = _discover_runs(root)
     if not runs:
         raise FileNotFoundError(f"No runs found under {root}")
