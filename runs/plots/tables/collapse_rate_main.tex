@@ -1,0 +1,21 @@
+\begin{table}[t]
+\centering
+\caption{Mean collapse rate (shock phase) per environment and stressor, averaged across algorithms, seeds, and evaluation modes. Higher = greater identity collapse under stress. \textbf{Bold} = worst stressor per row (excluding BL).}
+\label{tab:collapse_rate_main}
+\setlength{\tabcolsep}{5pt}
+\begin{tabular}{lrrrrr}
+\toprule
+Environment & BL & CD & RC & TV & VI \\
+\midrule
+\texttt{Pong} & 0.11 & 0.36 & 0.33 & \textbf{0.41} & 0.09 \\
+\texttt{Acrobot} & 0.01 & 0.66 & 0.42 & 0.45 & \textbf{1.00} \\
+\texttt{CartPole} & 0.04 & 0.47 & 1.00 & \textbf{1.00} & \textbf{1.00} \\
+\texttt{FL} & 0.03 & 0.26 & 0.31 & \textbf{0.53} & 0.06 \\
+\texttt{HalfCheetah} & 0.03 & 0.77 & \textbf{0.82} & 0.63 & 0.82 \\
+\texttt{Hopper} & 0.05 & 0.69 & 0.81 & 0.69 & \textbf{0.86} \\
+\texttt{MC} & 0.02 & 0.07 & 0.53 & 0.65 & \textbf{1.00} \\
+\texttt{MCC} & 0.00 & 0.04 & 0.03 & \textbf{0.95} & 0.00 \\
+\texttt{Pendulum} & 0.04 & 0.54 & 0.54 & 0.51 & \textbf{0.94} \\
+\bottomrule
+\end{tabular}
+\end{table}
