@@ -1,38 +1,3 @@
-# arcus/harness_rl/run_eval.py
-"""
-ARCUS-H evaluation harness.
-
-For each (algo, env, seed, eval_mode, schedule):
-  1. Baseline reference pass  -> baseline_stats + learned identity weights
-  2. Main schedule evaluation -> per-episode records + aggregated metrics
-
-Outputs (under run_root/eval/):
-  eval_results.csv    : one row per (seed, eval_mode, schedule)
-  per_episode.csv     : one row per episode (if save_per_episode)
-  baseline_stats.json : baseline reference stats for reproducibility
-
-Patch history
--------------
-[PATCH 1] ref_eps = clip(episodes // 2, 60, 120)   (was // 4, min 12, max 40)
-  More reference episodes give stable MAD estimates. At 240 eval eps:
-  ref_eps=120 -> pre_eps=40. At 120 eval eps: ref_eps=60 -> pre_eps=20.
-
-[PATCH 2] Adaptive collapse event threshold: p95(score | baseline, pre-phase)
-  Replaces fixed 0.60. FPR on baseline = 5% by construction (alpha=0.05,
-  the standard significance level). Stored in baseline_stats["collapse"]["score_p95"].
-
-[PATCH 3] concept_drift auto-calibration: drift_scale = k*sigma_obs/sqrt(T_shock)
-  Observations collected during reference pass. See concept_drift.py.
-
-[PATCH 4] Direct robust z-scoring of raw channels in _compute_baseline_stats
-  Replaces deficit z-scoring (which produced MAD=0 for all channels always).
-  Root cause of deficit MAD=0: soft = p20(channel), so 80% of baseline episodes
-  have channel >= soft -> deficit=0 -> median(deficit)=0 -> MAD(deficit)=0.
-  This is a mathematical certainty independent of sample size.
-  Fix: z-score raw channel values directly. baseline_stats["collapse"] now
-  stores "raw_robust" (median+MAD of integrity, id_drop, meaning) and "base_id"
-  instead of the old "soft" and "deficit_robust" dicts.
-"""
 from __future__ import annotations
 
 import argparse
@@ -62,11 +27,6 @@ from arcus.harness_rl.stressors.trust_violation import TrustViolationStressor
 from arcus.harness_rl.stressors.concept_drift import ConceptDriftStressor
 from arcus.harness_rl.stressors import get_stressor
 
-
-# ---------------------------------------------------------------------------
-# Numpy / pickle compatibility shim
-# ---------------------------------------------------------------------------
-
 def _numpy_pickle_compat():
     try:
         import sys
@@ -77,10 +37,6 @@ def _numpy_pickle_compat():
     except Exception:
         pass
 
-
-# ---------------------------------------------------------------------------
-# Atari / ALE helpers
-# ---------------------------------------------------------------------------
 
 def _ensure_atari_registered():
     try:
@@ -122,30 +78,17 @@ def _import_atari_wrappers():
 
 
 def _squeeze_frames(obs):
-    """
-    Normalize FrameStack output for SB3 CnnPolicy.
 
-    AtariPreprocessing(grayscale_obs=True, grayscale_newaxis=True) produces
-    (84,84,1) frames. FrameStack(4) stacks them into (4,84,84,1).
-    SB3 CnnPolicy expects (4,84,84) -- squeeze the trailing size-1 dim.
-    If grayscale_newaxis=False the shape is already (4,84,84); squeeze is no-op.
-    Also handles legacy single-frame HWC -> CHW.
-    """
     arr = np.array(obs)
     if arr.ndim == 4 and arr.shape[-1] == 1:
-        return arr.squeeze(-1)           # (4,84,84,1) -> (4,84,84)
+        return arr.squeeze(-1)
     if arr.ndim == 3 and arr.shape[-1] in (1, 3, 4):
-        return np.transpose(arr, (2, 0, 1))  # single-frame HWC -> CHW
+        return np.transpose(arr, (2, 0, 1))
     return arr
 
 
 def _wrap_ale_for_cnn(env: gym.Env, max_episode_steps: int = 1000) -> gym.Env:
-    """
-    Wrap an ALE env for CnnPolicy eval.
-    max_episode_steps caps episode length (default 1000 = standard Atari eval).
-    This is critical for eval speed: a solved Pong agent can play 10000+
-    steps/episode, making CPU inference prohibitively slow without a cap.
-    """
+
     AtariPreprocessing, FrameStack, TransformObservation = _import_atari_wrappers()
     env = AtariPreprocessing(
         env, noop_max=30, frame_skip=1, screen_size=84,
@@ -156,23 +99,15 @@ def _wrap_ale_for_cnn(env: gym.Env, max_episode_steps: int = 1000) -> gym.Env:
         env = FrameStack(env, num_stack=4)
     except TypeError:
         env = FrameStack(env, stack_size=4)
-    # Newer Gymnasium (>=0.26) requires observation_space as 3rd positional arg.
+
     try:
         env = TransformObservation(env, _squeeze_frames, env.observation_space)
     except TypeError:
         env = TransformObservation(env, _squeeze_frames)
-    # Cap episode length for eval speed — solved Atari agents play very long
-    # episodes (10k+ steps). 1000 steps ~= 11s of gameplay at 90fps, sufficient
-    # to measure identity stability without multi-hour eval runs.
     if max_episode_steps and max_episode_steps > 0:
         from gymnasium.wrappers import TimeLimit
         env = TimeLimit(env, max_episode_steps=max_episode_steps)
     return env
-
-
-# ---------------------------------------------------------------------------
-# Old-gym -> gymnasium adapter
-# ---------------------------------------------------------------------------
 
 def _convert_space_to_gymnasium(space):
     if isinstance(space, gspaces.Space):
@@ -227,22 +162,14 @@ class GymOldToGymnasiumEnv(gym.Env):
         if hasattr(self.old_env, "close"):
             self.old_env.close()
 
-
-# ---------------------------------------------------------------------------
-# Environment factory
-# ---------------------------------------------------------------------------
-
 def _make_base_env(env_id: str) -> gym.Env:
     if env_id.startswith("procgen:"):
         import gym as old_gym
-        import procgen  # noqa: F401
-        # old_gym wraps make() with PassiveEnvChecker which calls np.bool8
-        # (removed in NumPy 2.0).  Bypass it by making without the checker.
+        import procgen
         try:
             raw_env = old_gym.make(env_id, apply_api_compatibility=False)
         except TypeError:
             raw_env = old_gym.make(env_id)
-        # Unwrap the checker wrappers if present
         while hasattr(raw_env, 'env') and type(raw_env).__name__ in (
                 'OrderEnforcing', 'PassiveEnvChecker', 'EnvChecker'):
             raw_env = raw_env.env
@@ -251,11 +178,6 @@ def _make_base_env(env_id: str) -> gym.Env:
         _ensure_atari_registered()
         return _wrap_ale_for_cnn(gym.make(env_id), max_episode_steps=_ATARI_MAX_EP_STEPS)
     return gym.make(env_id)
-
-
-# ---------------------------------------------------------------------------
-# Model loading
-# ---------------------------------------------------------------------------
 
 def _load_model(algo: str, zip_path: Path):
     _numpy_pickle_compat()
@@ -275,11 +197,6 @@ def _load_model(algo: str, zip_path: Path):
     import importlib
     cls = getattr(importlib.import_module(mod_name), cls_name)
     return cls.load(zip_path, device="cpu")
-
-
-# ---------------------------------------------------------------------------
-# Run-dir / zip resolution
-# ---------------------------------------------------------------------------
 
 def _resolve_run_dir(run_dir: Path) -> Tuple[Path, Optional[Path]]:
     p = run_dir
@@ -322,11 +239,6 @@ def _find_zip(run_root: Path, seed: int, algo: str, explicit_zip: Optional[Path]
     raise FileNotFoundError(
         f"Could not find model zip for seed={seed} algo={algo} under {run_root}."
     )
-
-
-# ---------------------------------------------------------------------------
-# Helpers
-# ---------------------------------------------------------------------------
 
 def _parse_seeds(spec: str) -> List[int]:
     s = (spec or "").strip()
@@ -374,11 +286,6 @@ def _mad(arr: np.ndarray) -> float:
         return 0.0
     med = float(np.median(arr))
     return float(np.median(np.abs(arr - med)))
-
-
-# ---------------------------------------------------------------------------
-# Episode rollout
-# ---------------------------------------------------------------------------
 
 def _episode_rollout(
     env,
@@ -458,11 +365,6 @@ def _episode_rollout(
         **id_out,
     }
 
-
-# ---------------------------------------------------------------------------
-# Baseline stats computation   [PATCH 4: direct robust z-scoring]
-# ---------------------------------------------------------------------------
-
 def _compute_baseline_stats(df_ep: pd.DataFrame) -> Dict[str, Any]:
     """
     Compute reference statistics from a baseline evaluation pass.
@@ -525,12 +427,8 @@ def _compute_baseline_stats(df_ep: pd.DataFrame) -> Dict[str, Any]:
     integrity = _arr("integrity")
     meaning   = _arr("meaning")
 
-    # base_id: mean identity in baseline pre; used by callers to compute id_drop
     base_id = float(np.nanmean(identity)) if identity.size else 0.5
-    # Clip to max(0,...) to match what collapse_score receives.
-    # Without this, ~50% of reference episodes have identity > base_id
-    # -> unclipped id_drop is negative -> stored median is negative
-    # -> z_d is permanently biased positive at baseline -> FPR 20-50%.
+
     id_drop = np.maximum(0.0, base_id - identity)
 
     def _rob(arr: np.ndarray) -> Dict[str, float]:
@@ -544,14 +442,9 @@ def _compute_baseline_stats(df_ep: pd.DataFrame) -> Dict[str, Any]:
 
     rob_i = _rob(integrity)
     rob_d = _rob(id_drop)
-    rob_m = _rob(meaning)   # always {1.0, 0.0} in stress-free baseline
-
-    # ------------------------------------------------------------------
-    # Reproduce collapse_score's computation to derive center and p95.
-    # Must mirror collapse.py exactly so center is correct.
-    # ------------------------------------------------------------------
+    rob_m = _rob(meaning)
     _ZERO_MAD_THRESH = 1e-6
-    _MEANING_W       = 0.4   # zero-MAD weight for meaning channel
+    _MEANING_W       = 0.4
 
     def _sigmoid(x: float) -> float:
         x = float(np.clip(x, -500.0, 500.0))
@@ -570,17 +463,13 @@ def _compute_baseline_stats(df_ep: pd.DataFrame) -> Dict[str, Any]:
 
     raws: List[float] = []
     for i_val, id_val, m_val in zip(integrity, id_drop, meaning):
-        # meaning: zero-MAD fallback
+
         deficit_m = max(0.0, 1.0 - float(m_val))
         z_m = 6.0 * float(np.clip(deficit_m / 1.0, 0.0, 1.0))
         w_m = _MEANING_W
-
-        # integrity: direct robust-z (pre-negated: positive = worse)
         iz = i_med - float(i_val)
         z_i = float(np.clip(iz / (1.4826 * i_mad + 1e-8), -6.0, 6.0))
         w_i = _w_from_mad(i_mad) if i_mad >= _ZERO_MAD_THRESH else _MEANING_W
-
-        # id_drop: direct robust-z (pre-centred: positive = worse)
         dz = float(id_val) - d_med
         z_d = float(np.clip(dz / (1.4826 * d_mad + 1e-8), -6.0, 6.0))
         w_d = _w_from_mad(d_mad) if d_mad >= _ZERO_MAD_THRESH else _MEANING_W
@@ -595,11 +484,6 @@ def _compute_baseline_stats(df_ep: pd.DataFrame) -> Dict[str, Any]:
 
     raws_arr  = np.asarray(raws, dtype=float)
     center    = float(np.clip(float(np.median(raws_arr)) if raws else 0.50, 0.10, 0.90))
-    # score_p95 is on the raw array (before the outer logistic), which gives
-    # the same ordering as the final score but avoids a circular dependency.
-    # collapse_score centres and sharpens these raws identically, so the
-    # p95 of scores = sigmoid(sharpness * (p95_raw - center)).
-    # We compute the actual score p95 by applying the logistic.
     if raws:
         scores_arr = np.array([
             float(np.clip(
@@ -627,22 +511,16 @@ def _compute_baseline_stats(df_ep: pd.DataFrame) -> Dict[str, Any]:
             },
         },
         "collapse": {
-            # [PATCH 4] raw_robust replaces the old "soft" + "deficit_robust" dicts
             "raw_robust": {
-                "integrity": rob_i,   # {median, mad} of raw integrity scores
-                "id_drop":   rob_d,   # {median, mad} of (base_id - identity)
-                "meaning":   rob_m,   # always {1.0, 0.0}; for completeness
+                "integrity": rob_i,
+                "id_drop":   rob_d,
+                "meaning":   rob_m,
             },
             "base_id":    float(base_id),
             "center":     float(center),
-            "score_p95":  float(score_p95),  # adaptive event threshold (FPR~5%)
+            "score_p95":  float(score_p95),
         },
     }
-
-
-# ---------------------------------------------------------------------------
-# Stressor factory
-# ---------------------------------------------------------------------------
 
 def _make_stress_env(
     env_id: str,
@@ -670,15 +548,6 @@ def _make_stress_env(
 
     return apply_stress_pattern(base, mode=mode, pattern=pattern)
 
-
-# ---------------------------------------------------------------------------
-# All schedules
-# ---------------------------------------------------------------------------
-
-# Max steps per Atari episode during eval.
-# Solved agents (PPO on Pong) can play 10000+ steps/episode which makes
-# CPU eval prohibitively slow. 1000 steps = ~11s of gameplay, sufficient
-# for identity measurement. Standard in Atari eval literature.
 _ATARI_MAX_EP_STEPS: int = 1000
 
 ALL_SCHEDULES = [
@@ -688,11 +557,6 @@ ALL_SCHEDULES = [
     "valence_inversion",
     "concept_drift",
 ]
-
-
-# ---------------------------------------------------------------------------
-# Main evaluation loop
-# ---------------------------------------------------------------------------
 
 def main():
     ap = argparse.ArgumentParser(description="ARCUS-H evaluation harness")
@@ -745,22 +609,6 @@ def main():
 
         for eval_mode in eval_modes:
             deterministic = (eval_mode == "deterministic")
-
-            # ----------------------------------------------------------------
-            # 1. Baseline reference pass
-            #
-            # [PATCH 1] ref_eps = clip(episodes // 2, 60, 120)
-            #   Provides 20-40 pre-phase episodes for stable MAD estimation.
-            #   At 240 eval eps -> ref_eps=120 -> pre_eps=40  (solid)
-            #   At 120 eval eps -> ref_eps=60  -> pre_eps=20  (marginal, ok)
-            #
-            # [PATCH 3] ConceptDriftStressor created here; fed observations
-            #   for sigma_obs calibration.
-            # ----------------------------------------------------------------
-            # For Atari envs, reduce reference episodes: each episode can be
-            # very long (1000 steps cap) and we only need ~20 pre-phase eps
-            # for stable MAD estimation. The normal 60-120 ref_eps is designed
-            # for short classic-control episodes.
             _is_atari = _is_ale_env(args.env)
             if _is_atari:
                 ref_eps = int(np.clip(int(args.episodes) // 4, 20, 40))
@@ -784,8 +632,6 @@ def main():
                 rec["episode_idx"] = int(ep_idx)
                 per_ref.append(rec)
             env_ref.close()
-
-            # [PATCH 3] Calibrate concept_drift from reference-pass observations
             if cd_stressor is not None:
                 shock_eps  = max(1, int(args.episodes) // 3)
                 df_ref_tmp = pd.DataFrame(per_ref)
@@ -795,8 +641,6 @@ def main():
                 )
                 cd_stressor.calibrate(horizon=horizon, shock_episodes=shock_eps)
                 cd_stressor.reset_drift()
-
-            # [PATCH 4] Compute baseline stats using direct robust z-scoring
             df_ref         = pd.DataFrame(per_ref)
             baseline_stats = _compute_baseline_stats(df_ref)
 
@@ -844,16 +688,7 @@ def main():
                 sharpness=float(args.collapse_sharpness),
             )
 
-            # [PATCH 5] active_baseline_stats starts as the reference-pass stats.
-            # When the baseline schedule runs, it is replaced with stats recomputed
-            # from the actual pre-phase episodes (see patch inside the loop).
-            # All subsequent stressor schedules then inherit the corrected stats
-            # and threshold, ensuring consistent calibration throughout the run.
             active_baseline_stats = baseline_stats
-
-            # ----------------------------------------------------------------
-            # 2. Main evaluation across schedules
-            # ----------------------------------------------------------------
             for schedule in schedules:
                 if schedule in ("baseline", "none"):
                     mode    = "baseline"
@@ -870,7 +705,7 @@ def main():
                     concept_drift_stressor=(cd_stressor if schedule == "concept_drift" else None),
                 )
                 tracker = IdentityTracker()
-                tracker.weights = w   # data-derived weights from reference pass
+                tracker.weights = w
 
                 per_ep: List[Dict[str, Any]] = []
                 for ep_idx in range(int(args.episodes)):
@@ -907,32 +742,18 @@ def main():
                 id_drop_mean        = _drop(identity_pre,  identity_shock)
                 integrity_drop_mean = _drop(integrity_pre, integrity_shock)
                 meaning_drop_mean   = _drop(meaning_pre,   meaning_shock)
-
-                # [PATCH 5] For the baseline schedule, recompute baseline_stats
-                # from the actual pre-phase episodes recorded in this run.
-                # The reference pass (used for concept drift calibration + weights)
-                # runs a separate env instance whose random reset state can differ
-                # from the main eval env, causing base_id and integrity median to
-                # diverge by up to 0.10+ units. This makes id_drop and z_i
-                # permanently biased at baseline, inflating FPR to 20-50%.
-                # Recomputing from the actual pre-phase data makes calibration
-                # consistent with what is scored, giving FPR ~5% by construction.
-                active_baseline_stats = baseline_stats  # default: use ref-pass stats
+                active_baseline_stats = baseline_stats
                 if schedule in ("baseline", "none"):
                     m_pre = df_ep["stress_phase"].astype(str) == "pre"
                     df_pre = df_ep.loc[m_pre]
                     if len(df_pre) >= 10:
                         recomp = _compute_baseline_stats(df_pre)
-                        # Preserve meta, concept_drift fields and identity weights
-                        # from the original reference pass; only update the
-                        # collapse calibration (base_id, raw_robust, center, score_p95)
                         recomp.setdefault("identity", {})
                         recomp["identity"]["weights"] = (
                             baseline_stats.get("identity", {}).get("weights", {})
                         )
                         recomp["meta"]     = baseline_stats.get("meta", {})
                         active_baseline_stats = recomp
-                        # Update threshold from recomputed p95
                         if fixed_threshold is None:
                             new_p95 = float(recomp.get("collapse", {}).get("score_p95", event_threshold))
                             c_cfg = CollapseScoringConfig(
@@ -1017,16 +838,12 @@ def main():
                     "collapse_rate_post":  float(_rate_phase("post")),
                 })
 
-    # Release any cached GPU/CPU tensors between runs
     if _HAS_TORCH:
         try:
             _torch.cuda.empty_cache()
         except Exception:
             pass
 
-    # ----------------------------------------------------------------
-    # Write outputs
-    # ----------------------------------------------------------------
     out_csv = out_dir / "eval_results.csv"
     bs_path = out_dir / "baseline_stats.json"
 
