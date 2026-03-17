@@ -2,7 +2,7 @@
 ## Adaptive Reinforcement Coherence Under Stress
 ### Open Benchmark for Behavioral Stability in Reinforcement Learning
 
-
+[![DOI](https://img.shields.io/badge/DOI-10.5281%2Fzenodo.19075167-024BA0)](https://zenodo.org/records/19075167)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![Python 3.9+](https://img.shields.io/badge/python-3.9+-blue.svg)](https://www.python.org/)
 [![SB3](https://img.shields.io/badge/SB3-compatible-green.svg)](https://stable-baselines3.readthedocs.io/)
@@ -14,7 +14,7 @@ ARCUS-H is an open-source evaluation harness that adds a second axis to RL bench
 
 > **Behavioral stability under structured stress — not just reward.**
 
-
+[![DOI](https://img.shields.io/badge/DOI-10.5281%2Fzenodo.19075167-024BA0)](https://zenodo.org/records/19075167)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 
 ---
