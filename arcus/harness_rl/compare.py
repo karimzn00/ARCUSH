@@ -1,4 +1,3 @@
-# arcus/harness_rl/compare.py
 from __future__ import annotations
 
 import argparse
@@ -13,14 +12,12 @@ import matplotlib.pyplot as plt
 import matplotlib.gridspec as gridspec
 from matplotlib.colors import LinearSegmentedColormap
 
-# ── Patch: CoinRun and Breakout removed from experiment ──────────────────────
 DISCRETE_ENVS    = {"CartPole-v1", "Acrobot-v1", "FrozenLake-v1", "MountainCar-v0",
                     "ALE/Pong-v5"}
 ON_POLICY_ALGOS  = {"a2c", "ppo", "trpo"}
 OFF_POLICY_ALGOS = {"dqn", "ddpg", "sac", "td3"}
 IDENTITY_COMPONENTS = ["competence", "coherence", "continuity", "integrity", "meaning"]
 
-# ── Patch: publication-quality rcParams ──────────────────────────────────────
 matplotlib.rcParams.update({
     "font.family":       "DejaVu Sans",
     "font.size":         11,
@@ -34,9 +31,9 @@ matplotlib.rcParams.update({
     "axes.grid":         True,
     "grid.alpha":        0.25,
     "grid.linestyle":    "--",
-    "figure.dpi":        150,    # screen preview
-    "savefig.dpi":       300,    # publication quality
-    "pdf.fonttype":      42,     # embed fonts (required by most journals)
+    "figure.dpi":        150,
+    "savefig.dpi":       300,
+    "pdf.fonttype":      42,
     "ps.fonttype":       42,
 })
 
@@ -79,10 +76,6 @@ def _short_env(e: str) -> str:
              .replace("-v4", "").replace("-v5", ""))
 
 
-# ──────────────────────────────────────────────────────────────────────────────
-# I/O helpers
-# ──────────────────────────────────────────────────────────────────────────────
-
 def _load_eval_csv(run_root: Path) -> pd.DataFrame:
     p = run_root / "eval" / "eval_results.csv"
     if not p.exists():
@@ -124,11 +117,6 @@ def _discover_runs(root: Path) -> List[Path]:
             seen.add(str(r))
     return uniq
 
-
-# ──────────────────────────────────────────────────────────────────────────────
-# Aggregation
-# ──────────────────────────────────────────────────────────────────────────────
-
 def _aggregate_eval(df: pd.DataFrame) -> pd.DataFrame:
     group_cols  = ["env", "algo", "schedule", "eval_mode"]
     metric_cols = [c for c in df.columns
@@ -159,10 +147,6 @@ def _add_reward_norm(agg: pd.DataFrame) -> pd.DataFrame:
     )
     return agg
 
-
-# ──────────────────────────────────────────────────────────────────────────────
-# Leaderboard score
-# ──────────────────────────────────────────────────────────────────────────────
 
 def _default_weights() -> Tuple[float, float, float]:
     return 0.55, 0.30, 0.15
@@ -246,10 +230,6 @@ def _add_leaderboard_score(agg, calib, calib_env_fallback):
     return agg
 
 
-# ──────────────────────────────────────────────────────────────────────────────
-# Print tables
-# ──────────────────────────────────────────────────────────────────────────────
-
 def _print_tables(ev: pd.DataFrame, agg: pd.DataFrame):
     cols_order = [c for c in SCHEDULE_ORDER if c in ev["schedule"].unique()]
 
@@ -325,10 +305,6 @@ def _print_tables(ev: pd.DataFrame, agg: pd.DataFrame):
         print(shown.to_string(index=False))
 
 
-# ──────────────────────────────────────────────────────────────────────────────
-# LaTeX table generation
-# ──────────────────────────────────────────────────────────────────────────────
-
 def _write_latex_tables(ev: pd.DataFrame, plots_dir: Path):
     """
     Write publication-ready LaTeX tables to plots_dir/tables/.
@@ -345,7 +321,6 @@ def _write_latex_tables(ev: pd.DataFrame, plots_dir: Path):
     envs   = sorted(ev["env"].unique())
     S      = SCHEDULE_SHORT
 
-    # ── Table 1: Main collapse rate ───────────────────────────────────────
     data = (ev.groupby(["env", "schedule"])["collapse_rate_shock"]
               .mean().unstack("schedule")
               .reindex(index=envs, columns=scheds).fillna(0))
@@ -384,7 +359,6 @@ def _write_latex_tables(ev: pd.DataFrame, plots_dir: Path):
     out1.write_text("\n".join(lines), encoding="utf-8")
     print(f"[table] {out1}")
 
-    # ── Table 2: Algo vulnerability ────────────────────────────────────────
     mid   = ev[ev["schedule"].isin(["concept_drift", "resource_constraint",
                                      "trust_violation"])]
     worst = (mid.groupby(["env", "algo", "schedule"])["collapse_score_shock_mean"]
@@ -425,7 +399,6 @@ def _write_latex_tables(ev: pd.DataFrame, plots_dir: Path):
     out2.write_text("\n".join(lines2), encoding="utf-8")
     print(f"[table] {out2}")
 
-    # ── Table 3: Baseline FPR ─────────────────────────────────────────────
     bl  = ev[ev["schedule"] == "baseline"]
     fpr = (bl.groupby("env")["collapse_rate_pre"]
              .agg(["mean", "std"])
@@ -463,11 +436,6 @@ def _write_latex_tables(ev: pd.DataFrame, plots_dir: Path):
     out3 = tables_dir / "baseline_fpr.tex"
     out3.write_text("\n".join(lines3), encoding="utf-8")
     print(f"[table] {out3}")
-
-
-# ──────────────────────────────────────────────────────────────────────────────
-# Plots  (all use _savefig for PNG+PDF output)
-# ──────────────────────────────────────────────────────────────────────────────
 
 def _plot_collapse_rate_heatmap(ev: pd.DataFrame, plots_dir: Path):
     scheds = [s for s in SCHEDULE_ORDER if s in ev["schedule"].unique()]
