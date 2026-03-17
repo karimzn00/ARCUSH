@@ -4,13 +4,6 @@ import numpy as np
 
 
 def build_schedule_mask(*, episodes: int, schedule_tag: str, schedule_spec: str) -> np.ndarray:
-    """
-    Returns a boolean mask of length `episodes` telling whether each episode is under stress.
-
-    schedule_spec examples:
-      "none"
-      "none:20,invert:20,none:60"
-    """
     mask = np.zeros((episodes,), dtype=bool)
 
     if schedule_spec.strip().lower() == "none":
