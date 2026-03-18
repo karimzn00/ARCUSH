@@ -6,9 +6,6 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![Python 3.9+](https://img.shields.io/badge/python-3.9+-blue.svg)](https://www.python.org/)
 [![SB3](https://img.shields.io/badge/SB3-compatible-green.svg)](https://stable-baselines3.readthedocs.io/)
-[![Envs](https://img.shields.io/badge/envs-9-orange.svg)]()
-[![Algos](https://img.shields.io/badge/algos-7-orange.svg)]()
-[![Seeds](https://img.shields.io/badge/seeds-10-orange.svg)]()
 
 
 
