@@ -333,9 +333,9 @@ If you use ARCUS-H in your research, please cite:
 @misc{zinebi2025arcush,
   title   = {ARCUS-H: Behavioral Stability Under Controlled Stress
              as a Complementary RL Evaluation Axis},
-  author  = {Zinebi, Karim},
+  author  = {ZINEBI, Karim},
   year    = {2025},
-  url     = {https://github.com/karimzn00/ARCUSH_1.0}
+  url     = {https://github.com/karimzn00/ARCUSH}
 }
 ```
 
