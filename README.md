@@ -10,9 +10,10 @@
 [![Algos](https://img.shields.io/badge/algos-7-orange.svg)]()
 [![Seeds](https://img.shields.io/badge/seeds-10-orange.svg)]()
 
-ARCUS-H is an open-source evaluation harness that adds a second axis to RL benchmarking:
 
-> **Behavioral stability under structured stress — not just reward.**
+
+> **ARCUS-H is an open-source evaluation harness that adds a second axis to RL benchmarking:
+    Behavioral stability under structured stress — not just reward.**
 
 [![DOI](https://img.shields.io/badge/DOI-10.5281%2Fzenodo.19075167-024BA0)](https://zenodo.org/records/19075167)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
