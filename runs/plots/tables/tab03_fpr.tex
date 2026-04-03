@@ -1,0 +1,26 @@
+\begin{table}[t]
+\centering
+\small
+\caption{Empirical FPR (pre-phase degeneracy, baseline). Target $\alpha=0.05$. Mean $=$ 0.061. \textbf{Bold} $>0.10$.}
+\label{tab:fpr}
+\begin{tabular}{lrrrrrrrr}
+\toprule
+Environment & a2c & ddpg & dqn & ppo & qrdqn & sac & td3 & trpo \\
+\midrule
+ALE/Pong-v5 & 0.059 & -- & -- & 0.050 & -- & -- & -- & -- \\
+ALE/SpaceInvaders-v5 & 0.050 & -- & -- & 0.056 & -- & -- & -- & -- \\
+Acrobot-v1 & \textbf{0.146} & -- & \textbf{0.196} & 0.054 & \textbf{0.242} & -- & -- & 0.050 \\
+CartPole-v1 & 0.050 & -- & 0.050 & 0.050 & -- & -- & -- & 0.051 \\
+FrozenLake-v1 & 0.098 & -- & 0.050 & 0.050 & -- & -- & -- & 0.050 \\
+HalfCheetah-v4 & 0.050 & 0.055 & -- & 0.058 & -- & 0.050 & 0.050 & 0.057 \\
+Hopper-v4 & 0.051 & 0.051 & -- & 0.050 & -- & 0.059 & 0.057 & 0.051 \\
+LunarLander-v3 & 0.050 & -- & 0.050 & 0.050 & -- & -- & -- & 0.053 \\
+MountainCar-v0 & 0.053 & -- & 0.059 & 0.054 & -- & -- & -- & 0.055 \\
+MountainCarContinuous-v0 & 0.050 & 0.050 & -- & 0.050 & -- & 0.050 & 0.050 & 0.050 \\
+Pendulum-v1 & 0.050 & 0.054 & -- & 0.050 & -- & 0.050 & 0.053 & 0.054 \\
+Walker2d-v4 & 0.050 & -- & -- & 0.056 & -- & -- & -- & -- \\
+\midrule
+\textbf{Mean} & \multicolumn{8}{r}{0.061} \\
+\bottomrule
+\end{tabular}
+\end{table}

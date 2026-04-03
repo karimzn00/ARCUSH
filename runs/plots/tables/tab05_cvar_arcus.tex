@@ -1,0 +1,16 @@
+\begin{table}[t]
+\centering
+\small
+\caption{CVaR-5 vs ARCUS stability: correlation analysis. CVaR and ARCUS are positively correlated but not interchangeable. Disagreement cases = high CVaR tail risk but low ARCUS degeneracy: policies where return tail is wide but behaviour remains stable under stress.}
+\label{tab:cvar_arcus}
+\begin{tabular}{lrrrr}
+\toprule
+Comparison & $r$ & 95\% CI & $p$ & $n$ \\
+\midrule
+CVaR-5 vs policy degeneracy & -0.328 & [-0.439,-0.215] & 7.96e-08 & 255 \\
+CVaR-5 vs ARCUS score & +0.355 & [0.251,0.447] & 5.71e-09 & 255 \\
+\midrule
+High CVaR, low degeneracy (disagreements) & \multicolumn{4}{r}{27/255 (11\%)} \\
+\bottomrule
+\end{tabular}
+\end{table}

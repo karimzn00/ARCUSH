@@ -1,0 +1,24 @@
+\begin{table*}[t]
+\centering
+\small
+\caption{Policy degeneracy rate (shock phase) per environment and stressor. Mean over algorithms, 10 seeds, deterministic eval. \textbf{Bold} = worst env stressor per row. VI/RN are feedback-axis stressors excluded from primary correlation.}
+\label{tab:degeneracy}
+\begin{tabular}{lrrrrrrr}
+\toprule
+Environment & RC & TV & CD & ON & SB & VI & RN \\
+\midrule
+ALE/Pong-v5 & 0.24 & 0.52 & \textbf{0.63} & 0.42 & 0.12 & 0.44 & 0.73 \\
+ALE/SpaceInvaders-v5 & 0.26 & 0.25 & \textbf{0.30} & 0.13 & 0.20 & 0.19 & 0.14 \\
+Acrobot-v1 & 0.47 & 0.50 & \textbf{0.76} & 0.41 & 0.52 & 0.98 & 0.93 \\
+CartPole-v1 & 1.00 & \textbf{1.00} & 0.45 & 0.53 & 0.69 & 1.00 & 1.00 \\
+FrozenLake-v1 & 0.25 & \textbf{0.39} & 0.17 & 0.35 & 0.26 & 0.15 & 0.33 \\
+HalfCheetah-v4 & \textbf{0.92} & 0.72 & 0.91 & 0.61 & 0.84 & 0.91 & 0.34 \\
+Hopper-v4 & \textbf{0.95} & 0.75 & 0.85 & 0.81 & 0.82 & 0.97 & 0.55 \\
+LunarLander-v3 & \textbf{0.58} & 0.53 & 0.23 & 0.35 & 0.41 & 0.32 & 0.17 \\
+MountainCar-v0 & 0.87 & \textbf{0.87} & 0.03 & 0.07 & 0.24 & 0.93 & 0.90 \\
+MountainCarContinuous-v0 & 0.13 & \textbf{0.98} & 0.70 & 0.35 & 0.60 & 0.14 & 0.98 \\
+Pendulum-v1 & 0.51 & 0.23 & \textbf{0.54} & 0.42 & 0.33 & 0.71 & 0.16 \\
+Walker2d-v4 & \textbf{0.86} & 0.48 & 0.62 & 0.49 & 0.53 & 0.95 & 0.22 \\
+\bottomrule
+\end{tabular}
+\end{table*}

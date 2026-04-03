@@ -1,0 +1,18 @@
+\begin{table}[t]
+\centering
+\small
+\caption{ARCUS stability score vs normalised reward: all correlation variants. 2000-resample bootstrap 95\% CIs. R$^2=0.037$: 96.3\% of stability variance unexplained by reward alone. \textbf{Bold} = primary claim.}
+\label{tab:correlation}
+\begin{tabular}{lllrrr}
+\toprule
+Key & Description & Type & $r$ & 95\% CI & $n$ \\
+\midrule
+primary & Pearson (env stressors, VI/RN excluded) & Primary & \textbf{+0.240} & [0.120,0.364] & 255 \\
+secondary & Pearson (all stressors incl VI/RN) & Secondary & +0.311 & [0.216,0.403] & 357 \\
+spearman & Spearman rank (env stressors) & Robustness & +0.180 & [0.057,0.310] & -- \\
+$z_normed & Pearson, per-env z-norm (env stressors) & Robustness & +0.234 & [0.121,0.349] & -- \\
+$non_atari & Pearson (env stressors, Atari excluded) & Stratified & +0.220 & [0.089,0.348] & 235 \\
+atari & Pearson (env stressors, Atari only) & Stratified & +0.716 & [0.414,0.903] & 20 \\
+\bottomrule
+\end{tabular}
+\end{table}
