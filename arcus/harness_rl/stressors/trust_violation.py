@@ -1,21 +1,3 @@
-# arcus/harness_rl/stressors/trust_violation.py
-"""
-Trust Violation Stressor.
-
-Models a mismatch between the agent's intended action and what is
-actually executed in the environment.
-
-  intensity ~ Beta(a, b) * intensity_scale
-
-With probability apply_prob:
-  Discrete:   with prob clip(action_perturb * intensity, 0..1),
-              remap to a uniformly sampled different action
-  Continuous: add N(0, action_perturb * intensity) noise, clip to bounds
-              "applied" is True only if perturbation > min_effect
-
-The seed is forwarded from the registry so results are reproducible
-per (algo, env, seed) combination — NOT fixed at 0 globally.
-"""
 from __future__ import annotations
 
 from dataclasses import dataclass
