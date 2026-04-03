@@ -7,7 +7,6 @@ import numpy as np
 
 ArrayLike = Union[np.ndarray, Iterable[float]]
 
-
 def _ff(x: Any, default: float = 0.0) -> float:
     try:
         v = float(x)
@@ -79,16 +78,6 @@ class IdentityWeights:
 def identity_weights_from_baseline_components(
     baseline_components: Dict[str, np.ndarray],
 ) -> IdentityWeights:
-    """
-    Derive channel weights from baseline component variability.
-
-    Channels with lower MAD (more stable in baseline) receive higher weight,
-    using inverse-sqrt-MAD with a floor to prevent any single channel dominating.
-
-    Parameters
-    ----------
-    baseline_components : dict mapping channel names to 1D float arrays (episodes)
-    """
     keys = ["competence", "coherence", "continuity", "integrity", "meaning"]
     mads = []
     for k in keys:
@@ -105,13 +94,14 @@ def identity_weights_from_baseline_components(
     finite = mads[np.isfinite(mads)]
     med_mad = float(np.median(finite)) if finite.size else 0.0
 
+    # MAD floor: prevents constant channels from collapsing the whole weight vector
     mad_floor = float(max(1e-6, 0.25 * med_mad, 1e-3))
 
     mads = np.where(np.isfinite(mads), mads, med_mad)
     mads_eff = np.maximum(mads, mad_floor)
 
     inv = 1.0 / (mads_eff + 1e-12)
-    inv = np.sqrt(inv)
+    inv = np.sqrt(inv)          # gentle damping
     inv = inv / (float(np.sum(inv)) + 1e-12)
 
     return IdentityWeights(
@@ -354,6 +344,10 @@ def identity_score(
     return _clip01(s)
 
 
+# ---------------------------------------------------------------------------
+# High-level tracker
+# ---------------------------------------------------------------------------
+
 @dataclass
 class IdentityTracker:
     state:   IdentityState  = field(default_factory=IdentityState)
@@ -366,7 +360,6 @@ class IdentityTracker:
     regret_scale:      float = 1.0
 
     def reset(self) -> None:
-        """Reset state between independent evaluation runs (different seeds/schedules)."""
         self.state = IdentityState()
 
     def update_episode(
