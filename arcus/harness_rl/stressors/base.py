@@ -1,23 +1,3 @@
-# arcus/harness_rl/stressors/base.py
-"""
-BaseStressor and StressPatternWrapper.
-
-StressPatternWrapper applies a 3-segment stress schedule:
-    baseline:PRE , {mode}:SHOCK , baseline:POST
-
-Segment lengths are in episodes. The wrapper tracks episode index,
-derives the current phase, and delegates to the stressor's
-transform_action / transform_step hooks.
-
-Stable info keys added to every step and reset:
-    stress_mode      : str   stressor name
-    stress_segment   : str   current segment name ("baseline" or stressor name)
-    stress_phase     : str   "pre" | "shock" | "post"
-    stress_active    : bool  True only during shock segment for a non-baseline stressor
-    violation        : float (default 0.0, overwritten by stressor if applicable)
-    regret           : float (default 0.0, overwritten by stressor if applicable)
-    stress_applied   : int   (default 0, 1 if stressor actually modified action/reward)
-"""
 from __future__ import annotations
 
 import re
@@ -27,11 +7,6 @@ from typing import Any, Dict, List, Tuple
 import numpy as np
 import gymnasium as gym
 from gymnasium import spaces
-
-
-# ---------------------------------------------------------------------------
-# Pattern parsing helpers
-# ---------------------------------------------------------------------------
 
 def _parse_int_loose(s: str) -> int:
     m = re.search(r"-?\d+", str(s))
@@ -49,14 +24,7 @@ def _normalize_pattern(pattern: str) -> str:
 
 
 def parse_pattern_segments(pattern: str, mode: str) -> List[Tuple[str, int]]:
-    """
-    Parse a 3-segment stress pattern string.
 
-    Expected format:  "baseline:PRE,{mode}:SHOCK,baseline:POST"
-    For baseline-only: "baseline:PRE,baseline:SHOCK,baseline:POST"
-
-    Returns list of (segment_name, n_episodes) tuples.
-    """
     pattern = _normalize_pattern(pattern)
     parts = [p.strip() for p in pattern.split(",") if p.strip()]
     if len(parts) != 3:
@@ -78,19 +46,7 @@ def parse_pattern_segments(pattern: str, mode: str) -> List[Tuple[str, int]]:
         out.append((name, n_i))
     return out
 
-
-# ---------------------------------------------------------------------------
-# Base stressor
-# ---------------------------------------------------------------------------
-
 class BaseStressor:
-    """
-    No-op stressor base class.
-
-    Subclasses override transform_action and/or transform_step.
-    Both hooks must ensure info always contains the three stable keys:
-        violation, regret, stress_applied
-    """
     name: str = "base"
 
     def transform_action(
@@ -125,29 +81,13 @@ class BaseStressor:
         info.setdefault("stress_applied", 0)
         return obs, float(reward), bool(terminated), bool(truncated), info
 
-
-# ---------------------------------------------------------------------------
-# Phase info
-# ---------------------------------------------------------------------------
-
 @dataclass
 class _PhaseInfo:
-    phase:        str   # "pre" | "shock" | "post"
-    active:       bool  # True only during shock for a non-baseline stressor
-    segment_name: str   # "baseline" or stressor name
-
-
-# ---------------------------------------------------------------------------
-# Action coercion
-# ---------------------------------------------------------------------------
+    phase:        str
+    active:       bool
+    segment_name: str
 
 def _coerce_action_for_space(action: Any, action_space: spaces.Space) -> Any:
-    """
-    Many SB3 policies return ndarray([a]) for Discrete spaces.
-    Some envs (FrozenLake) require a plain int (hashable).
-    This coercion is applied *after* the stressor so the env always
-    receives the correct type.
-    """
     try:
         if isinstance(action_space, spaces.Discrete):
             if isinstance(action, (np.ndarray, list, tuple)):
@@ -161,19 +101,7 @@ def _coerce_action_for_space(action: Any, action_space: spaces.Space) -> Any:
         return action
     return action
 
-
-# ---------------------------------------------------------------------------
-# Wrapper
-# ---------------------------------------------------------------------------
-
 class StressPatternWrapper(gym.Wrapper):
-    """
-    Gymnasium wrapper that applies a stressor according to a 3-segment pattern.
-
-    Episode counter is incremented on each reset() call, so the wrapper is
-    stateful and must not be shared across parallel workers.
-    """
-
     def __init__(self, env: gym.Env, stressor: BaseStressor, *, mode: str, pattern: str):
         super().__init__(env)
         self.stressor = stressor
@@ -212,7 +140,6 @@ class StressPatternWrapper(gym.Wrapper):
         self._episode_idx += 1
         ph    = self._phase_for_episode(self._episode_idx)
         info  = {**self._stress_info(ph), **dict(info or {})}
-        # ensure stress keys are not overwritten by env info
         info.update(self._stress_info(ph))
         return obs, info
 
@@ -247,11 +174,6 @@ class StressPatternWrapper(gym.Wrapper):
         merged.setdefault("regret",        0.0)
         merged.setdefault("stress_applied", 0)
         return obs, float(reward), bool(terminated), bool(truncated), merged
-
-
-# ---------------------------------------------------------------------------
-# Factory
-# ---------------------------------------------------------------------------
 
 def apply_stress_pattern(env: gym.Env, *, mode: str, pattern: str) -> StressPatternWrapper:
     from . import get_stressor
