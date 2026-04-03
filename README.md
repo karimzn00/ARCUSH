@@ -203,8 +203,6 @@ L = 0.55 · Ī  +  0.30 · (1 − CR_shock)  +  0.15 · r_norm
 ![Channel Density](runs/plots/fig20_channel_drop_density.png)
 *Per-channel degradation density — validates five-channel decomposition as non-redundant.*
 
-![Atari Density](runs/plots/fig24_atari_density.png)
-*SpaceInvaders dense near 0 under ON; Pong broader and higher.*
 
 ---
 
