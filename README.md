@@ -4,7 +4,7 @@
 
 **Measuring what reward cannot.**
 
-[![Zenodo](https://img.shields.io/badge/DOI-10.5281%2Fzenodo.19075167-blue)](https://zenodo.org/records/19075167)
+[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.19422716.svg)](https://doi.org/10.5281/zenodo.19422716)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 [![Python 3.9+](https://img.shields.io/badge/python-3.9+-blue.svg)](https://python.org)
 [![SB3](https://img.shields.io/badge/SB3-compatible-green.svg)](https://github.com/DLR-RM/stable-baselines3)
